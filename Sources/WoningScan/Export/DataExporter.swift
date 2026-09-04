@@ -7,6 +7,7 @@ import Foundation
 ///   weinig werk is
 /// - de gemaakte foto's, met bestandsnamen die corresponderen met de "foto"-kolom in de CSV's
 enum DataExporter {
+    @MainActor
     static func exporteer(_ woning: Woning) throws -> URL {
         var entries: [SimpleZip.Entry] = []
 
