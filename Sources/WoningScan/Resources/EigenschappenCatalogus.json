@@ -1,0 +1,45 @@
+{
+  "_opmerking": "Startcatalogus, samengesteld uit de labels die letterlijk voorkomen in jullie eigen exportbestanden. De entries gemarkeerd met 'controleer' zijn aangevuld met gangbare tussenstappen en MOETEN geverifieerd worden tegen de exacte lijst in jullie Vabi-installatie voordat je erop vertrouwt. Pas dit bestand vrij aan met een teksteditor - geen Swift-kennis nodig - en bouw de app opnieuw.",
+
+  "wandIsolatie": [
+    { "label": "isolatie onbekend (<1965, zonder spouw, Rc = 0.19)", "rc": 0.19, "spouw": false, "bron": "waargenomen" },
+    { "label": "ongeïsoleerd (zonder spouw, Rc = 0.19)", "rc": 0.19, "spouw": false, "bron": "waargenomen" },
+    { "label": "ongeïsoleerd (met spouw, Rc = 0.35)", "rc": 0.35, "spouw": true, "bron": "waargenomen" },
+    { "label": "licht geïsoleerd (met spouw, Rc = 1.3) - controleer", "rc": 1.3, "spouw": true, "bron": "controleer" },
+    { "label": "matig geïsoleerd (met spouw, Rc = 2.5) - controleer", "rc": 2.5, "spouw": true, "bron": "controleer" },
+    { "label": "goed geïsoleerd (met spouw, Rc = 3.5) - controleer", "rc": 3.5, "spouw": true, "bron": "controleer" },
+    { "label": "zeer goed geïsoleerd (met spouw, Rc = 4.5) - controleer", "rc": 4.5, "spouw": true, "bron": "controleer" },
+    { "label": "nieuwbouw-niveau (met spouw, Rc = 6.0) - controleer", "rc": 6.0, "spouw": true, "bron": "controleer" }
+  ],
+
+  "dakIsolatie": [
+    { "label": "isolatie onbekend (<1965, zonder spouw, Rc = 0.22)", "rc": 0.22, "spouw": false, "bron": "waargenomen" },
+    { "label": "ongeïsoleerd (Rc = 0.22) - controleer", "rc": 0.22, "spouw": false, "bron": "controleer" },
+    { "label": "licht geïsoleerd (Rc = 1.3) - controleer", "rc": 1.3, "spouw": false, "bron": "controleer" },
+    { "label": "matig geïsoleerd (Rc = 2.5) - controleer", "rc": 2.5, "spouw": false, "bron": "controleer" },
+    { "label": "goed geïsoleerd (Rc = 3.5) - controleer", "rc": 3.5, "spouw": false, "bron": "controleer" },
+    { "label": "zeer goed geïsoleerd (Rc = 4.5) - controleer", "rc": 4.5, "spouw": false, "bron": "controleer" },
+    { "label": "nieuwbouw-niveau (Rc = 6.0) - controleer", "rc": 6.0, "spouw": false, "bron": "controleer" }
+  ],
+
+  "vloerIsolatie": [
+    { "label": "ongeïsoleerd (met spouw, Rc = 0.35)", "rc": 0.35, "spouw": true, "bron": "waargenomen" },
+    { "label": "ongeïsoleerd (zonder spouw, Rc = 0.19) - controleer", "rc": 0.19, "spouw": false, "bron": "controleer" },
+    { "label": "licht geïsoleerd (Rc = 1.3) - controleer", "rc": 1.3, "spouw": false, "bron": "controleer" },
+    { "label": "matig geïsoleerd (Rc = 2.5) - controleer", "rc": 2.5, "spouw": false, "bron": "controleer" },
+    { "label": "goed geïsoleerd (Rc = 3.5) - controleer", "rc": 3.5, "spouw": false, "bron": "controleer" }
+  ],
+
+  "deurIsolatie": [
+    { "label": "ongeïsoleerd (U = 3.40)", "u": 3.40, "bron": "waargenomen" },
+    { "label": "matig geïsoleerd (U = 2.20) - controleer", "u": 2.20, "bron": "controleer" },
+    { "label": "goed geïsoleerd (U = 1.50) - controleer", "u": 1.50, "bron": "controleer" },
+    { "label": "zeer goed geïsoleerd (U = 1.00) - controleer", "u": 1.00, "bron": "controleer" }
+  ],
+
+  "paneelIsolatie": [
+    { "label": "10 mm isolatie (zonder spouw, Hout of kunststof)", "dikteMm": 10, "spouw": false, "materiaal": "Hout of kunststof", "bron": "waargenomen" },
+    { "label": "geen isolatie (Hout of kunststof) - controleer", "dikteMm": 0, "spouw": false, "materiaal": "Hout of kunststof", "bron": "controleer" },
+    { "label": "20 mm isolatie (zonder spouw, Hout of kunststof) - controleer", "dikteMm": 20, "spouw": false, "materiaal": "Hout of kunststof", "bron": "controleer" }
+  ]
+}
