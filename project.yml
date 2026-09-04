@@ -26,4 +26,4 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.woningscan.app
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        GENERATE_INFOPLIST_FILE: NO
