@@ -21,6 +21,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Selecteer nieuwste beschikbare Xcode op deze runner
+        run: |
+          echo "Beschikbare Xcode-versies op deze runner:"
+          ls -d /Applications/Xcode*.app
+          NEWEST=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          echo "Selecteer: $NEWEST"
+          sudo xcode-select -s "$NEWEST/Contents/Developer"
+
       - name: Toon Xcode-versie
         run: xcodebuild -version
 
