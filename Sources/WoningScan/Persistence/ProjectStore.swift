@@ -42,6 +42,15 @@ final class ProjectStore: ObservableObject {
         return dir
     }
 
+    /// Map met de opgeslagen .usdz 3D-modellen en puntenwolken (LiDAR-scans) van een project.
+    func modellenMap(voor woningId: UUID) -> URL {
+        let dir = map(voor: woningId).appendingPathComponent("Modellen", isDirectory: true)
+        if !fm.fileExists(atPath: dir.path) {
+            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+        return dir
+    }
+
     func laadAlleProjecten() {
         guard let items = try? fm.contentsOfDirectory(at: projectenMap, includingPropertiesForKeys: nil) else {
             projecten = []
@@ -101,5 +110,27 @@ final class ProjectStore: ObservableObject {
         let url = fotosMap(voor: woningId).appendingPathComponent(bestandsnaam)
         guard let data = try? Data(contentsOf: url) else { return nil }
         return UIImage(data: data)
+    }
+
+    /// Verplaatst een geëxporteerd .usdz-bestand (3D-model of puntenwolk, van een LiDAR-scan in de
+    /// tijdelijke map) naar de permanente opslag van een project en geeft de relatieve bestandsnaam terug.
+    func slaModelOp(vanaf tijdelijkeUrl: URL, voor woningId: UUID) -> String? {
+        let bestandsnaam = "\(UUID().uuidString).usdz"
+        let url = modellenMap(voor: woningId).appendingPathComponent(bestandsnaam)
+        do {
+            try? fm.removeItem(at: url)
+            try fm.moveItem(at: tijdelijkeUrl, to: url)
+            return bestandsnaam
+        } catch {
+            return nil
+        }
+    }
+
+    func modelUrl(bestandsnaam: String, woningId: UUID) -> URL {
+        modellenMap(voor: woningId).appendingPathComponent(bestandsnaam)
+    }
+
+    func verwijderModel(bestandsnaam: String, woningId: UUID) {
+        try? fm.removeItem(at: modelUrl(bestandsnaam: bestandsnaam, woningId: woningId))
     }
 }
