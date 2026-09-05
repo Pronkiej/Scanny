@@ -5,8 +5,9 @@ import SceneKit
 /// Volledig-scherm 3D-scan van een ruimte: loop rond met de telefoon terwijl LiDAR een gekleurde
 /// mesh van wanden/vloer/plafond opbouwt (zelfde soort weergave als bekende scan-apps: de kleuren
 /// tonen wat ARKit herkent, niet een afstandswaarschuwing). Onderin: Annuleren, opnemen (rood),
-/// en een foto-knop - een foto tijdens het scannen wordt direct een notitie die je kan toelichten
-/// (type bouwdeel + bericht), net als bij de app die als voorbeeld is aangeleverd.
+/// en een foto-knop - een foto tijdens het scannen legt alleen de foto vast (korte bevestiging in
+/// beeld, geen pop-up en geen invoer): welk bouwdeel het is en een toelichting vul je pas later in,
+/// door de foto aan te tikken in het overzicht van de 3D-viewer (zie Model3DViewerScherm).
 struct RoomScanScherm: View {
     let titel: String
     let woningId: UUID
@@ -16,9 +17,7 @@ struct RoomScanScherm: View {
     @State private var coordinator = ScanCoordinator()
     @State private var isOpnemen = false
     @State private var verstrekenSeconden = 0
-    @State private var toonNotitieForm = false
-    @State private var laatsteFoto: UIImage?
-    @State private var laatsteFotoBestandsnaam: String?
+    @State private var toonFotoBevestiging = false
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -84,6 +83,17 @@ struct RoomScanScherm: View {
                         .padding(.top, 4)
                 }
 
+                if toonFotoBevestiging {
+                    Label("Foto vastgelegd", systemImage: "checkmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(.black.opacity(0.6), in: Capsule())
+                        .padding(.top, 4)
+                        .transition(.opacity)
+                }
+
                 HStack {
                     Spacer()
                     Button {
@@ -122,14 +132,10 @@ struct RoomScanScherm: View {
             }
         }
         .statusBarHidden()
+        .animation(.easeInOut(duration: 0.25), value: toonFotoBevestiging)
         .onAppear { coordinator.woningIdVoorFotos = woningId }
         .onReceive(timer) { _ in
             if isOpnemen { verstrekenSeconden += 1 }
-        }
-        .sheet(isPresented: $toonNotitieForm) {
-            ScanNotitieForm(foto: laatsteFoto) { type, bericht in
-                coordinator.notities.append(ScanNotitie(type: type, bericht: bericht, fotoBestandsnaam: laatsteFotoBestandsnaam))
-            }
         }
     }
 
@@ -148,59 +154,15 @@ struct RoomScanScherm: View {
         dismiss()
     }
 
+    /// Legt alleen de foto vast (geen invoer, geen pop-up) - type en bericht vul je later in via de
+    /// 3D-viewer. Een korte "Foto vastgelegd"-melding bevestigt dat 'm is opgeslagen.
     private func maakFotoNotitie() {
         guard let foto = coordinator.maakFoto() else { return }
-        laatsteFoto = foto
-        laatsteFotoBestandsnaam = ProjectStore.shared.slaFotoOp(foto, voor: coordinator.woningIdVoorFotos ?? UUID())
-        toonNotitieForm = true
-    }
-}
-
-/// Klein formulier na een foto-notitie: welk bouwdeel is dit, en een bericht om later toe te lichten.
-private struct ScanNotitieForm: View {
-    let foto: UIImage?
-    var onOpslaan: (_ type: String, _ bericht: String) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var type = "Gevel"
-    @State private var bericht = ""
-
-    private let types = ["Gevel", "Raam", "Deur", "Dak", "Vloer", "Anders"]
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                if let foto {
-                    Section {
-                        Image(uiImage: foto)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxHeight: 220)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                Section("Type bouwdeel") {
-                    Picker("Type", selection: $type) {
-                        ForEach(types, id: \.self) { Text($0) }
-                    }
-                    .pickerStyle(.segmented)
-                }
-                Section("Bericht (later toe te lichten)") {
-                    TextEditor(text: $bericht).frame(minHeight: 100)
-                }
-            }
-            .navigationTitle("Notitie")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Opslaan") {
-                        onOpslaan(type, bericht)
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuleren") { dismiss() }
-                }
-            }
+        let bestandsnaam = ProjectStore.shared.slaFotoOp(foto, voor: coordinator.woningIdVoorFotos ?? UUID())
+        coordinator.notities.append(ScanNotitie(fotoBestandsnaam: bestandsnaam))
+        toonFotoBevestiging = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
+            toonFotoBevestiging = false
         }
     }
 }
