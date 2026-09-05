@@ -43,20 +43,25 @@ struct MeetVeld: View {
     @State private var toonMeetScherm = false
 
     var body: some View {
-        HStack {
-            Text(titel)
-            Spacer()
-            TextField("m", value: $waardeMeters, format: .number.precision(.fractionLength(2)))
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 70)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(titel)
+                Spacer()
+                TextField("handmatig invoeren", value: $waardeMeters, format: .number.precision(.fractionLength(2)))
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 90)
+                Text("m").foregroundStyle(.secondary)
+            }
             Button {
                 toonMeetScherm = true
             } label: {
-                Image(systemName: "arkit")
+                Label("Meet met AR-liniaal", systemImage: "arkit")
+                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.bordered)
         }
+        .padding(.vertical, 2)
         .fullScreenCover(isPresented: $toonMeetScherm) {
             MeetScherm(titel: meetTitel ?? titel) { afstand in
                 waardeMeters = (afstand * 100).rounded() / 100
