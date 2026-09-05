@@ -18,6 +18,7 @@ struct Woning: Identifiable, Codable, Hashable {
     var gebouwhoogteMm: Double?
     var gebruiksoppervlaktes: [GebruiksoppervlakEntry] = []
     var aftappunten: [Aftappunt] = []
+    var kamerScans: [KamerScan] = []
 
     var laatstGewijzigd: Date = Date()
 
@@ -25,4 +26,31 @@ struct Woning: Identifiable, Codable, Hashable {
     var aantalElementen: Int {
         gevels.count + daken.count + vloeren.count + gevels.reduce(0) { $0 + $1.openingen.count }
     }
+}
+
+/// Eén 3D-scan (LiDAR-meshscan met ARKit) van een verdieping: een doorlopende opname terwijl je door
+/// de ruimte loopt. Een LiDAR-scan levert twee dingen op die je allebei apart kan bekijken: een
+/// puntenwolk (de losse datapunten die ARKit in de ruimte meet, vóórdat ze tot een oppervlak worden
+/// verbonden) en een 3D-model (dezelfde punten, maar dan verbonden tot een gekleurde mesh die het
+/// uiterlijk van de wanden/vloer/plafond nabootst) - plus de tijdens het scannen gemaakte foto-notities
+/// (zie ScanNotitie) die je later kan toelichten.
+struct KamerScan: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var verdieping: String
+    var naam: String = ""
+    var modelBestandsnaam: String?         // 3D-model (.usdz) met de gekleurde mesh, zie ProjectStore.modellenMap
+    var pointcloudBestandsnaam: String?    // losse puntenwolk (.usdz) van dezelfde scan, apart te bekijken
+    var notities: [ScanNotitie] = []
+    var duurSeconden: Int = 0
+    var datum: Date = Date()
+}
+
+/// Eén foto-notitie, gemaakt tijdens het 3D-scannen door op de foto-knop te drukken: legt vast wát
+/// (type bouwdeel) en waarom (bericht), zodat je 'm later kan toelichten bij het verwerken van de opname.
+struct ScanNotitie: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var type: String = "Gevel"
+    var bericht: String = ""
+    var fotoBestandsnaam: String?
+    var datum: Date = Date()
 }
