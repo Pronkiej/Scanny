@@ -51,7 +51,11 @@ struct VerdiepingView: View {
                                         .clipShape(RoundedRectangle(cornerRadius: 6))
                                 }
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(notitie.type).font(.caption).bold()
+                                    if notitie.type.isEmpty {
+                                        Text("Nog niet ingevuld").font(.caption).bold().foregroundStyle(.orange)
+                                    } else {
+                                        Text(notitie.type).font(.caption).bold()
+                                    }
                                     if !notitie.bericht.isEmpty {
                                         Text(notitie.bericht).font(.caption2).foregroundStyle(.secondary)
                                     }
