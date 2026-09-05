@@ -19,6 +19,7 @@ struct Model3DViewerScherm: View {
     @State private var tijdelijkePunten: [SCNVector3] = []
     @State private var meetlijnen: [Meetlijn] = []
     @State private var begrenzingslijnen: [Begrenzingslijn] = []
+    @State private var notities: [ScanNotitie] = []
     @State private var wachtOpBevestiging: PendingMeetlijn?
     @State private var toonLijst = false
 
@@ -65,6 +66,7 @@ struct Model3DViewerScherm: View {
         .onAppear {
             meetlijnen = kamerScan?.meetlijnen ?? []
             begrenzingslijnen = kamerScan?.begrenzingslijnen ?? []
+            notities = kamerScan?.notities ?? []
             laadScene()
         }
         .onChange(of: weergave) { _, nieuweWaarde in
@@ -81,8 +83,11 @@ struct Model3DViewerScherm: View {
             LijnenLijstView(
                 meetlijnen: meetlijnen,
                 begrenzingslijnen: begrenzingslijnen,
+                notities: notities,
+                woningId: woningId,
                 onVerwijderMeetlijn: { verwijderMeetlijn($0) },
-                onVerwijderBegrenzing: { verwijderBegrenzing($0) }
+                onVerwijderBegrenzing: { verwijderBegrenzing($0) },
+                onBijwerkenNotitie: { bijwerkenNotitie($0) }
             )
         }
     }
@@ -228,11 +233,20 @@ struct Model3DViewerScherm: View {
         herbouwLijnen()
     }
 
+    /// Slaat de tijdens het scannen vastgelegde foto pas hier op met het door de gebruiker gekozen
+    /// type en bericht - de foto zelf stond al klaar, alleen de toelichting was nog niet ingevuld.
+    private func bijwerkenNotitie(_ bijgewerkt: ScanNotitie) {
+        guard let idx = notities.firstIndex(where: { $0.id == bijgewerkt.id }) else { return }
+        notities[idx] = bijgewerkt
+        slaOp()
+    }
+
     private func slaOp() {
         guard var bijgewerkt = store.projecten.first(where: { $0.id == woningId }),
               let idx = bijgewerkt.kamerScans.firstIndex(where: { $0.id == kamerScanId }) else { return }
         bijgewerkt.kamerScans[idx].meetlijnen = meetlijnen
         bijgewerkt.kamerScans[idx].begrenzingslijnen = begrenzingslijnen
+        bijgewerkt.kamerScans[idx].notities = notities
         store.opslaan(bijgewerkt)
     }
 
@@ -373,18 +387,38 @@ private struct BevestigMeetlijnForm: View {
     }
 }
 
-/// Overzicht van alle meet- en begrenzingslijnen in dit model, met mogelijkheid om er een te verwijderen.
+/// Overzicht van deze scan: de tijdens het scannen gemaakte foto's (nog te toelichten door ze aan te
+/// tikken) en alle meet- en begrenzingslijnen, met mogelijkheid om er een te verwijderen.
 private struct LijnenLijstView: View {
     let meetlijnen: [Meetlijn]
     let begrenzingslijnen: [Begrenzingslijn]
+    let notities: [ScanNotitie]
+    let woningId: UUID
     var onVerwijderMeetlijn: (Meetlijn) -> Void
     var onVerwijderBegrenzing: (Begrenzingslijn) -> Void
+    var onBijwerkenNotitie: (ScanNotitie) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var actieveNotitie: ScanNotitie?
 
     var body: some View {
         NavigationStack {
             List {
+                Section("Foto's (\(notities.count))") {
+                    if notities.isEmpty {
+                        Text("Nog geen foto's gemaakt tijdens deze scan.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(notities) { notitie in
+                        Button {
+                            actieveNotitie = notitie
+                        } label: {
+                            fotoRij(notitie)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
                 Section("Meetlijnen (\(meetlijnen.count))") {
                     ForEach(meetlijnen) { lijn in
                         VStack(alignment: .leading) {
@@ -410,11 +444,122 @@ private struct LijnenLijstView: View {
                     }
                 }
             }
-            .navigationTitle("Lijnen")
+            .navigationTitle("Details")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Klaar") { dismiss() }
                 }
+            }
+            .sheet(item: $actieveNotitie) { notitie in
+                FotoNotitieForm(woningId: woningId, notitie: notitie) { bijgewerkt in
+                    onBijwerkenNotitie(bijgewerkt)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func fotoRij(_ notitie: ScanNotitie) -> some View {
+        HStack(spacing: 10) {
+            if let foto = ProjectStore.shared.laadFoto(bestandsnaam: notitie.fotoBestandsnaam, woningId: woningId) {
+                Image(uiImage: foto)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 48, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.quaternary)
+                    .frame(width: 48, height: 48)
+                    .overlay(Image(systemName: "photo").foregroundStyle(.secondary))
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                if notitie.type.isEmpty {
+                    Text("Nog niet ingevuld")
+                        .font(.subheadline)
+                        .foregroundStyle(.orange)
+                } else {
+                    Text(notitie.type)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                }
+                if !notitie.bericht.isEmpty {
+                    Text(notitie.bericht)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+/// Formulier om een tijdens het scannen gemaakte foto achteraf toe te lichten: welk bouwdeel is dit
+/// en een bericht erbij - wordt pas hier ingevuld, niet meer tijdens het scannen zelf.
+private struct FotoNotitieForm: View {
+    let woningId: UUID
+    let notitie: ScanNotitie
+    var onOpslaan: (_ bijgewerkt: ScanNotitie) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var type: String
+    @State private var bericht: String
+    @State private var foto: UIImage?
+
+    private let types = ["Gevel", "Raam", "Deur", "Dak", "Vloer", "Anders"]
+
+    init(woningId: UUID, notitie: ScanNotitie, onOpslaan: @escaping (_ bijgewerkt: ScanNotitie) -> Void) {
+        self.woningId = woningId
+        self.notitie = notitie
+        self.onOpslaan = onOpslaan
+        _type = State(initialValue: notitie.type.isEmpty ? "Gevel" : notitie.type)
+        _bericht = State(initialValue: notitie.bericht)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let foto {
+                    Section {
+                        Image(uiImage: foto)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 220)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                Section("Type bouwdeel") {
+                    Picker("Type", selection: $type) {
+                        ForEach(types, id: \.self) { Text($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                Section("Bericht") {
+                    TextEditor(text: $bericht).frame(minHeight: 100)
+                }
+            }
+            .navigationTitle("Foto-notitie")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Opslaan") {
+                        var bijgewerkt = notitie
+                        bijgewerkt.type = type
+                        bijgewerkt.bericht = bericht
+                        onOpslaan(bijgewerkt)
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuleren") { dismiss() }
+                }
+            }
+            .onAppear {
+                foto = ProjectStore.shared.laadFoto(bestandsnaam: notitie.fotoBestandsnaam, woningId: woningId)
             }
         }
     }
@@ -467,4 +612,3 @@ private struct Model3DRepresentable: UIViewRepresentable {
         }
     }
 }
-
