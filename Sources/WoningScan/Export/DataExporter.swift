@@ -6,6 +6,7 @@ import Foundation
 ///   tegen het benodigde Vabi-importformaat aan zit zodat latere fine-tuning naar het exacte format
 ///   weinig werk is
 /// - de gemaakte foto's, met bestandsnamen die corresponderen met de "foto"-kolom in de CSV's
+/// - de 3D-scans (3D-modellen en puntenwolken)
 enum DataExporter {
     @MainActor
     static func exporteer(_ woning: Woning) throws -> URL {
@@ -32,6 +33,16 @@ enum DataExporter {
             for bestand in bestanden {
                 if let data = try? Data(contentsOf: bestand) {
                     entries.append(.init(naam: "Fotos/\(bestand.lastPathComponent)", data: data))
+                }
+            }
+        }
+
+        // 4. 3D-modellen (LiDAR-scans: zowel de gekleurde mesh als de losse puntenwolk, beide .usdz)
+        let modellenMap = ProjectStore.shared.modellenMap(voor: woning.id)
+        if let bestanden = try? FileManager.default.contentsOfDirectory(at: modellenMap, includingPropertiesForKeys: nil) {
+            for bestand in bestanden {
+                if let data = try? Data(contentsOf: bestand) {
+                    entries.append(.init(naam: "3D-modellen/\(bestand.lastPathComponent)", data: data))
                 }
             }
         }
