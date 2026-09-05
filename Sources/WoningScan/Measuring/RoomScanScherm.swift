@@ -259,12 +259,58 @@ final class ScanCoordinator: NSObject, ARSCNViewDelegate, ARSessionDelegate {
         return UIImage(cgImage: cgImage, scale: 1, orientation: .right)
     }
 
-    /// Best-effort export van de opgebouwde scène (inclusief de zichtbare mesh) als .usdz 3D-model.
+    /// Bouwt een schoon 3D-model (los van de groen/rood-gekleurde live scanweergave hierboven) met een
+    /// neutrale grijze kleur, zodat je het achteraf prettig kan bekijken - en exporteert het als .usdz.
     func exporteerModel() -> URL? {
-        guard let scene = arView?.scene else { return nil }
+        let scene = SCNScene()
+        var heeftGeometrie = false
+        for anchor in arView?.session.currentFrame?.anchors ?? [] {
+            guard let meshAnchor = anchor as? ARMeshAnchor else { continue }
+            let node = schoneMeshNode(voor: meshAnchor.geometry)
+            node.simdTransform = meshAnchor.transform
+            scene.rootNode.addChildNode(node)
+            heeftGeometrie = true
+        }
+        guard heeftGeometrie else { return nil }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).usdz")
         let gelukt = scene.write(to: url, options: nil, delegate: nil, progressHandler: nil)
         return gelukt ? url : nil
+    }
+
+    /// Zet één ARMeshAnchor om naar een neutraal grijze SCNNode (zonder de proximity-kleuring van de
+    /// live scanweergave) - gebruikt voor het schone, achteraf te bekijken 3D-model.
+    private func schoneMeshNode(voor geometrie: ARMeshGeometry) -> SCNNode {
+        let vertexBron = SCNGeometrySource(
+            buffer: geometrie.vertices.buffer,
+            vertexFormat: geometrie.vertices.format,
+            semantic: .vertex,
+            vertexCount: geometrie.vertices.count,
+            dataOffset: geometrie.vertices.offset,
+            dataStride: geometrie.vertices.stride
+        )
+        let normaalBron = SCNGeometrySource(
+            buffer: geometrie.normals.buffer,
+            vertexFormat: geometrie.normals.format,
+            semantic: .normal,
+            vertexCount: geometrie.normals.count,
+            dataOffset: geometrie.normals.offset,
+            dataStride: geometrie.normals.stride
+        )
+        let faces = geometrie.faces
+        let faceByteCount = faces.count * faces.indexCountPerPrimitive * faces.bytesPerIndex
+        let faceData = Data(bytes: faces.buffer.contents(), count: faceByteCount)
+        let element = SCNGeometryElement(
+            data: faceData,
+            primitiveType: .triangles,
+            primitiveCount: faces.count,
+            bytesPerIndex: faces.bytesPerIndex
+        )
+
+        let scnGeometrie = SCNGeometry(sources: [vertexBron, normaalBron], elements: [element])
+        scnGeometrie.firstMaterial?.diffuse.contents = UIColor(white: 0.75, alpha: 1)
+        scnGeometrie.firstMaterial?.isDoubleSided = true
+
+        return SCNNode(geometry: scnGeometrie)
     }
 
     // MARK: - Live mesh-visualisatie
@@ -448,7 +494,7 @@ final class ScanCoordinator: NSObject, ARSCNViewDelegate, ARSessionDelegate {
         element.maximumPointScreenSpaceRadius = 6
 
         let geometrie = SCNGeometry(sources: [bron], elements: [element])
-        geometrie.firstMaterial?.diffuse.contents = UIColor.systemGreen
+        geometrie.firstMaterial?.diffuse.contents = UIColor(white: 0.6, alpha: 1)
         geometrie.firstMaterial?.lightingModel = .constant
 
         let node = SCNNode(geometry: geometrie)
