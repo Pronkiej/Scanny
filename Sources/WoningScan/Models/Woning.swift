@@ -47,11 +47,12 @@ struct KamerScan: Identifiable, Codable, Hashable {
     var datum: Date = Date()
 }
 
-/// Eén foto-notitie, gemaakt tijdens het 3D-scannen door op de foto-knop te drukken: legt vast wát
-/// (type bouwdeel) en waarom (bericht), zodat je 'm later kan toelichten bij het verwerken van de opname.
+/// Eén foto-notitie: tijdens het scannen wordt alleen de foto vastgelegd (geen invoer, geen pop-up) -
+/// type bouwdeel en bericht vul je pas later in, door de foto aan te tikken in het overzicht van de
+/// 3D-viewer (zie Model3DViewerScherm). Een lege `type` betekent: nog niet ingevuld.
 struct ScanNotitie: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
-    var type: String = "Gevel"
+    var type: String = ""
     var bericht: String = ""
     var fotoBestandsnaam: String?
     var datum: Date = Date()
