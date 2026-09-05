@@ -1,5 +1,4 @@
 import SwiftUI
-import QuickLook
 
 /// Toont alle gevels, daken en vloeren die aan één verdieping (level) hangen, met knoppen om
 /// nieuwe elementen toe te voegen. Dit is het scherm waar het gros van het scanwerk gebeurt.
@@ -9,7 +8,7 @@ struct VerdiepingView: View {
 
     @EnvironmentObject private var store: ProjectStore
     @State private var toonRoomScan = false
-    @State private var bekijkModelUrl: URL?
+    @State private var actieveScan: KamerScan?
 
     private var woning: Woning {
         store.projecten.first(where: { $0.id == woningId }) ?? Woning(id: woningId)
@@ -32,29 +31,14 @@ struct VerdiepingView: View {
                                 .foregroundStyle(.secondary)
                         }
 
-                        HStack(spacing: 10) {
-                            Button {
-                                if let bestandsnaam = scan.modelBestandsnaam {
-                                    bekijkModelUrl = ProjectStore.shared.modelUrl(bestandsnaam: bestandsnaam, woningId: woningId)
-                                }
-                            } label: {
-                                Label("3D-model", systemImage: "cube")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            .disabled(scan.modelBestandsnaam == nil)
-
-                            Button {
-                                if let bestandsnaam = scan.pointcloudBestandsnaam {
-                                    bekijkModelUrl = ProjectStore.shared.modelUrl(bestandsnaam: bestandsnaam, woningId: woningId)
-                                }
-                            } label: {
-                                Label("Puntenwolk", systemImage: "circle.grid.3x3.fill")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            .disabled(scan.pointcloudBestandsnaam == nil)
+                        Button {
+                            actieveScan = scan
+                        } label: {
+                            Label("Bekijken & meten", systemImage: "cube.transparent")
                         }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(scan.modelBestandsnaam == nil && scan.pointcloudBestandsnaam == nil)
 
                         ForEach(scan.notities) { notitie in
                             HStack(alignment: .top, spacing: 8) {
@@ -150,7 +134,10 @@ struct VerdiepingView: View {
                 verwerkScanResultaat(notities: notities, modelUrl: modelUrl, pointcloudUrl: pointcloudUrl, duurSeconden: duurSeconden)
             }
         }
-        .quickLookPreview($bekijkModelUrl)
+        .fullScreenCover(item: $actieveScan) { scan in
+            Model3DViewerScherm(woningId: woningId, kamerScanId: scan.id)
+                .environmentObject(store)
+        }
     }
 
     @ViewBuilder
