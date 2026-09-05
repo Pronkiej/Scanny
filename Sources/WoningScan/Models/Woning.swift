@@ -41,6 +41,8 @@ struct KamerScan: Identifiable, Codable, Hashable {
     var modelBestandsnaam: String?         // 3D-model (.usdz) met de gekleurde mesh, zie ProjectStore.modellenMap
     var pointcloudBestandsnaam: String?    // losse puntenwolk (.usdz) van dezelfde scan, apart te bekijken
     var notities: [ScanNotitie] = []
+    var meetlijnen: [Meetlijn] = []             // handmatig ingetekende afstanden in het 3D-model (bv. muur-tot-muur)
+    var begrenzingslijnen: [Begrenzingslijn] = [] // handmatig ingetekende randen/begrenzingen in het 3D-model
     var duurSeconden: Int = 0
     var datum: Date = Date()
 }
@@ -53,4 +55,32 @@ struct ScanNotitie: Identifiable, Codable, Hashable {
     var bericht: String = ""
     var fotoBestandsnaam: String?
     var datum: Date = Date()
+}
+
+/// Eén punt in de lokale 3D-ruimte van een scan (meters, zelfde coördinatenstelsel als het opgeslagen
+/// .usdz-bestand van die scan).
+struct Punt3D: Codable, Hashable {
+    var x: Double
+    var y: Double
+    var z: Double
+}
+
+/// Eén ingetekende afstand tussen twee punten in het 3D-model (bv. muur-tot-muur), met de afstand die
+/// uit het model zelf is berekend en een eventueel later bevestigde/gecorrigeerde afstand - handmatig
+/// ingevoerd na het zelf opmeten, bijvoorbeeld met een rolmaat of een bluetooth-laserafstandsmeter.
+struct Meetlijn: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var naam: String = ""
+    var start: Punt3D
+    var eind: Punt3D
+    var berekendeAfstandM: Double
+    var bevestigdeAfstandM: Double?
+}
+
+/// Eén ingetekende begrenzingslijn (bv. de rand van een muur, vloer of ander bouwdeel) in het 3D-model,
+/// opgebouwd uit een reeks aangetikte punten.
+struct Begrenzingslijn: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var naam: String = ""
+    var punten: [Punt3D] = []
 }
