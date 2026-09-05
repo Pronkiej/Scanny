@@ -215,9 +215,9 @@ private struct ScanCameraRepresentable: UIViewRepresentable {
         view.automaticallyUpdatesLighting = true
         view.scene = SCNScene()
 
-        // Toont automatisch de door ARKit herkende mesh, gekleurd per classificatie
-        // (wand/vloer/plafond/etc) - dit is Apple's eigen "scene understanding" debug-weergave.
-        view.debugOptions = [.showSceneUnderstanding]
+        // De gekleurde mesh wordt zelf opgebouwd in ScanCoordinator (zie renderer(_:didAdd:for:) hieronder) -
+        // ARSCNView heeft, anders dan RealityKit's ARView, geen ingebouwde "showSceneUnderstanding"
+        // debug-weergave, dus de mesh per herkend vlak wordt hier zelf van kleur voorzien.
 
         let config = ARWorldTrackingConfiguration()
         if ARWorldTrackingConfiguration.supportsSceneReconstruction(.meshWithClassification) {
@@ -265,6 +265,124 @@ final class ScanCoordinator: NSObject, ARSCNViewDelegate, ARSessionDelegate {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).usdz")
         let gelukt = scene.write(to: url, options: nil, delegate: nil, progressHandler: nil)
         return gelukt ? url : nil
+    }
+
+    // MARK: - Live mesh-visualisatie
+
+    /// ARSCNView voegt zelf geen zichtbare geometrie toe voor een herkend LiDAR-oppervlak (ARMeshAnchor) -
+    /// dat wordt hier zelf opgebouwd en gekleurd, zodat je tijdens het scannen ziet wat er al is
+    /// vastgelegd (en zodat exporteerModel() hierboven ook daadwerkelijk iets te exporteren heeft).
+    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+        guard let meshAnchor = anchor as? ARMeshAnchor else { return }
+        node.addChildNode(meshNode(voor: meshAnchor))
+    }
+
+    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+        guard let meshAnchor = anchor as? ARMeshAnchor else { return }
+        node.childNodes.forEach { $0.removeFromParentNode() }
+        node.addChildNode(meshNode(voor: meshAnchor))
+    }
+
+    /// Bouwt een gekleurde SCNNode van één stuk LiDAR-mesh: groen op een prettige scanafstand tot de
+    /// telefoon, oranje/rood als je te dichtbij of te ver van het oppervlak staat - net als bij de
+    /// scan-app uit het voorbeeld, waar de kleur laat zien of je goed staat om te scannen.
+    private func meshNode(voor anchor: ARMeshAnchor) -> SCNNode {
+        let geometrie = anchor.geometry
+
+        let vertexBron = SCNGeometrySource(
+            buffer: geometrie.vertices.buffer,
+            vertexFormat: geometrie.vertices.format,
+            semantic: .vertex,
+            vertexCount: geometrie.vertices.count,
+            dataOffset: geometrie.vertices.offset,
+            dataStride: geometrie.vertices.stride
+        )
+        let normaalBron = SCNGeometrySource(
+            buffer: geometrie.normals.buffer,
+            vertexFormat: geometrie.normals.format,
+            semantic: .normal,
+            vertexCount: geometrie.normals.count,
+            dataOffset: geometrie.normals.offset,
+            dataStride: geometrie.normals.stride
+        )
+
+        let faces = geometrie.faces
+        let faceByteCount = faces.count * faces.indexCountPerPrimitive * faces.bytesPerIndex
+        let faceData = Data(bytes: faces.buffer.contents(), count: faceByteCount)
+        let element = SCNGeometryElement(
+            data: faceData,
+            primitiveType: .triangles,
+            primitiveCount: faces.count,
+            bytesPerIndex: faces.bytesPerIndex
+        )
+
+        var bronnen = [vertexBron, normaalBron]
+        if let kleurBron = kleurBron(voor: geometrie, ankerTransform: anchor.transform) {
+            bronnen.append(kleurBron)
+        }
+
+        let scnGeometrie = SCNGeometry(sources: bronnen, elements: [element])
+        scnGeometrie.firstMaterial?.lightingModel = .constant
+        scnGeometrie.firstMaterial?.isDoubleSided = true
+        scnGeometrie.firstMaterial?.diffuse.contents = UIColor.white
+        scnGeometrie.firstMaterial?.transparency = 0.65
+
+        return SCNNode(geometry: scnGeometrie)
+    }
+
+    /// Per-vertex kleur op basis van de afstand tot de camera: groen op 0,5 - 3 m, oranje/rood
+    /// daarbuiten (te dichtbij of te ver weg om goed te scannen).
+    private func kleurBron(voor geometrie: ARMeshGeometry, ankerTransform: simd_float4x4) -> SCNGeometrySource? {
+        guard let cameraTransform = arView?.session.currentFrame?.camera.transform else { return nil }
+        let cameraPositie = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
+
+        let bron = geometrie.vertices
+        var kleuren: [Float] = []
+        kleuren.reserveCapacity(bron.count * 4)
+        let buffer = bron.buffer.contents()
+        for i in 0..<bron.count {
+            let offset = bron.offset + bron.stride * i
+            let vertex = buffer.advanced(by: offset).assumingMemoryBound(to: (Float, Float, Float).self).pointee
+            let lokaalPunt = SIMD4<Float>(vertex.0, vertex.1, vertex.2, 1)
+            let wereldPunt = ankerTransform * lokaalPunt
+            let positie = SIMD3<Float>(wereldPunt.x, wereldPunt.y, wereldPunt.z)
+            let (r, g, b) = kleurVoorAfstand(afstand(positie, cameraPositie))
+            kleuren.append(r)
+            kleuren.append(g)
+            kleuren.append(b)
+            kleuren.append(1)
+        }
+        let data = kleuren.withUnsafeBufferPointer { Data(buffer: $0) }
+        return SCNGeometrySource(
+            data: data,
+            semantic: .color,
+            vectorCount: bron.count,
+            usesFloatComponents: true,
+            componentsPerVector: 4,
+            bytesPerComponent: MemoryLayout<Float>.size,
+            dataOffset: 0,
+            dataStride: MemoryLayout<Float>.size * 4
+        )
+    }
+
+    private func afstand(_ a: SIMD3<Float>, _ b: SIMD3<Float>) -> Float {
+        let d = a - b
+        return (d.x * d.x + d.y * d.y + d.z * d.z).squareRoot()
+    }
+
+    private func kleurVoorAfstand(_ afstand: Float) -> (Float, Float, Float) {
+        let minimum: Float = 0.5
+        let maximum: Float = 3.0
+        if afstand < minimum {
+            let t = max(0, min(1, afstand / minimum))
+            return (1, t, 0)
+        } else if afstand > maximum {
+            let overschrijding = afstand - maximum
+            let t = max(0, min(1, overschrijding / maximum))
+            return (1, 1 - t, 0)
+        } else {
+            return (0, 1, 0)
+        }
     }
 
     /// Bouwt een losse puntenwolk (.usdz) uit de ruwe LiDAR-meetpunten van alle herkende mesh-ankers:
@@ -342,4 +460,3 @@ final class ScanCoordinator: NSObject, ARSCNViewDelegate, ARSessionDelegate {
         return gelukt ? url : nil
     }
 }
-
