@@ -23,7 +23,18 @@ targets:
           - "Resources/Info.plist"
     info:
       path: Sources/WoningScan/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: WoningScan
+        CFBundleDevelopmentRegion: nl
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSCameraUsageDescription: "WoningScan gebruikt de camera om foto's te maken van gevels, ramen en deuren tijdens de opname, en om met AR afstanden in te meten."
+        NSLocationWhenInUseUsageDescription: "WoningScan gebruikt het kompas van je toestel om automatisch de oriëntatie (windrichting) van een gevel te bepalen."
+        NSPhotoLibraryAddUsageDescription: "WoningScan kan gemaakte foto's opslaan in je fotobibliotheek."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.woningscan.app
-        GENERATE_INFOPLIST_FILE: NO
