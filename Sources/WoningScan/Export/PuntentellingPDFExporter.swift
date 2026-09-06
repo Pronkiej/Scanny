@@ -208,4 +208,4 @@ private struct PDFCursor {
     private func jaNee(_ waarde: Bool) -> String { waarde ? "Ja" : "Nee" }
     private func getal(_ waarde: Double) -> String { String(format: "%.1f", waarde) }
 }
-
+ 
