@@ -67,6 +67,7 @@ private struct NieuwProjectScherm: View {
     @Environment(\.dismiss) private var dismiss
     @State private var naam = ""
     @State private var adres = ""
+    @State private var projectTypes: Set<ProjectType> = []
 
     var body: some View {
         NavigationStack {
@@ -74,6 +75,30 @@ private struct NieuwProjectScherm: View {
                 Section("Woninggegevens") {
                     TextField("Naam / referentie", text: $naam)
                     TextField("Adres", text: $adres)
+                }
+                Section {
+                    ForEach(ProjectType.allCases) { type in
+                        Button {
+                            if projectTypes.contains(type) {
+                                projectTypes.remove(type)
+                            } else {
+                                projectTypes.insert(type)
+                            }
+                        } label: {
+                            HStack {
+                                Text(type.rawValue)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: projectTypes.contains(type) ? "checkmark.square.fill" : "square")
+                                    .foregroundStyle(projectTypes.contains(type) ? Color.accentColor : Color.secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } header: {
+                    Text("Projecttype")
+                } footer: {
+                    Text("Kies één of beide - dit bepaalt welke onderdelen je in dit project ziet.")
                 }
             }
             .navigationTitle("Nieuw project")
@@ -86,10 +111,11 @@ private struct NieuwProjectScherm: View {
                         var woning = Woning()
                         woning.naam = naam
                         woning.adres = adres
+                        woning.projectTypes = projectTypes
                         onAanmaken(woning)
                         dismiss()
                     }
-                    .disabled(naam.isEmpty)
+                    .disabled(naam.isEmpty || projectTypes.isEmpty)
                 }
             }
         }
