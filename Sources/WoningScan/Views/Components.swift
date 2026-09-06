@@ -115,6 +115,75 @@ struct FotoVeld: View {
     }
 }
 
+/// Foto-lijst met eventueel meerdere foto's (bv. per ruimte in de puntentelling): camera-knop om een
+/// foto toe te voegen, tik op het kruisje op een foto om 'm te verwijderen.
+struct FotoLijstVeld: View {
+    let woningId: UUID
+    @Binding var bestandsnamen: [String]
+
+    @State private var toonCamera = false
+    @State private var thumbnails: [String: UIImage] = [:]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(bestandsnamen, id: \.self) { naam in
+                    ZStack(alignment: .topTrailing) {
+                        if let thumbnail = thumbnails[naam] {
+                            Image(uiImage: thumbnail)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 72, height: 72)
+                                .clipShape(RoundedRectangle(cornerRadius: 9))
+                        } else {
+                            RoundedRectangle(cornerRadius: 9)
+                                .fill(.quaternary)
+                                .frame(width: 72, height: 72)
+                        }
+                        Button {
+                            bestandsnamen.removeAll { $0 == naam }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(.white, .black.opacity(0.55))
+                                .font(.system(size: 17))
+                        }
+                        .padding(3)
+                    }
+                }
+                Button {
+                    toonCamera = true
+                } label: {
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(.quaternary)
+                        .frame(width: 72, height: 72)
+                        .overlay(Image(systemName: "camera.fill").foregroundStyle(.secondary))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.vertical, 2)
+        }
+        .onAppear { laadThumbnails() }
+        .onChange(of: bestandsnamen) { _, _ in laadThumbnails() }
+        .fullScreenCover(isPresented: $toonCamera) {
+            CameraCaptureView { image in
+                if let naam = ProjectStore.shared.slaFotoOp(image, voor: woningId) {
+                    bestandsnamen.append(naam)
+                    thumbnails[naam] = image
+                }
+                toonCamera = false
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private func laadThumbnails() {
+        for naam in bestandsnamen where thumbnails[naam] == nil {
+            thumbnails[naam] = ProjectStore.shared.laadFoto(bestandsnaam: naam, woningId: woningId)
+        }
+    }
+}
+
 /// Kompas-picker: toont de live gemeten oriëntatie met de mogelijkheid om 'm handmatig te corrigeren.
 struct OrientatiePicker: View {
     @Binding var orientatie: Orientatie
