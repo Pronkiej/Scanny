@@ -6,7 +6,6 @@ import Foundation
 ///   tegen het benodigde Vabi-importformaat aan zit zodat latere fine-tuning naar het exacte format
 ///   weinig werk is
 /// - de gemaakte foto's, met bestandsnamen die corresponderen met de "foto"-kolom in de CSV's
-/// - de 3D-scans (3D-modellen en puntenwolken)
 enum DataExporter {
     @MainActor
     static func exporteer(_ woning: Woning) throws -> URL {
@@ -20,12 +19,17 @@ enum DataExporter {
         entries.append(.init(naam: "woning.json", data: jsonData))
 
         // 2. CSV's per categorie
-        entries.append(.init(naam: "BENG_wanden_en_wandopeningen.csv", data: csvWanden(woning)))
-        entries.append(.init(naam: "BENG_daken.csv", data: csvDaken(woning)))
-        entries.append(.init(naam: "BENG_vloeren.csv", data: csvVloeren(woning)))
-        entries.append(.init(naam: "BENG_gebouwhoogte.csv", data: csvGebouwhoogte(woning)))
-        entries.append(.init(naam: "BENG_GO.csv", data: csvGO(woning)))
-        entries.append(.init(naam: "BENG_boilers.csv", data: csvBoilers(woning)))
+        if woning.toontEnergielabel {
+            entries.append(.init(naam: "BENG_wanden_en_wandopeningen.csv", data: csvWanden(woning)))
+            entries.append(.init(naam: "BENG_daken.csv", data: csvDaken(woning)))
+            entries.append(.init(naam: "BENG_vloeren.csv", data: csvVloeren(woning)))
+            entries.append(.init(naam: "BENG_gebouwhoogte.csv", data: csvGebouwhoogte(woning)))
+            entries.append(.init(naam: "BENG_GO.csv", data: csvGO(woning)))
+            entries.append(.init(naam: "BENG_boilers.csv", data: csvBoilers(woning)))
+        }
+        if woning.toontPuntentelling {
+            entries.append(.init(naam: "Puntentelling.csv", data: csvPuntentelling(woning)))
+        }
 
         // 3. Foto's
         let fotosMap = ProjectStore.shared.fotosMap(voor: woning.id)
@@ -37,7 +41,7 @@ enum DataExporter {
             }
         }
 
-        // 4. 3D-modellen (LiDAR-scans: zowel de gekleurde mesh als de losse puntenwolk, beide .usdz)
+        // 4. 3D-modellen (LiDAR-scans, .usdz)
         let modellenMap = ProjectStore.shared.modellenMap(voor: woning.id)
         if let bestanden = try? FileManager.default.contentsOfDirectory(at: modellenMap, includingPropertiesForKeys: nil) {
             for bestand in bestanden {
@@ -142,6 +146,79 @@ enum DataExporter {
             ])
         }
         return csvData(rows)
+    }
+
+    /// Eén rij per ingevuld veld ("tidy" formaat: Ruimte, Veld, Waarde) zodat dit los van de precieze
+    /// kolomindeling in Excel of op een website verder te verwerken is.
+    private static func csvPuntentelling(_ woning: Woning) -> Data {
+        var rows: [[String]] = [["Ruimte", "Veld", "Waarde"]]
+        let p = woning.puntentelling
+
+        func voegRuimteToe(_ naam: String, _ ruimte: PuntentellingRuimte) {
+            rows.append([naam, "Aanwezig", jaNee(ruimte.aanwezig)])
+            if ruimte.aanwezig {
+                rows.append([naam, "Verwarmd", jaNee(ruimte.verwarmd)])
+                rows.append([naam, "Aantal foto's", "\(ruimte.fotoBestandsnamen.count)"])
+            }
+        }
+
+        voegRuimteToe("Woonkamer", p.woonkamer)
+        voegRuimteToe("Woonkamer met open keuken", p.woonkamerMetOpenKeuken)
+
+        rows.append(["Keuken", "Aanwezig", jaNee(p.keuken.aanwezig)])
+        if p.keuken.aanwezig {
+            let k = p.keuken
+            rows.append(["Keuken", "Verwarmd", jaNee(k.verwarmd)])
+            rows.append(["Keuken", "Lengte aanrechtblad (cm)", k.lengteAanrechtbladCm.map(getal) ?? ""])
+            rows.append(["Keuken", "Totale breedte keukenkasten (cm)", k.totaleBreedteKeukenkastenCm.map(getal) ?? ""])
+            rows.append(["Keuken", "Inbouw kookplaat", jaNee(k.inbouwKookplaat)])
+            rows.append(["Keuken", "Inbouw oven", jaNee(k.inbouwOven)])
+            rows.append(["Keuken", "Afzuigkap", jaNee(k.afzuigkap)])
+            rows.append(["Keuken", "Inbouw magnetron", jaNee(k.inbouwMagnetron)])
+            rows.append(["Keuken", "Inbouw koelkast", jaNee(k.inbouwKoelkast)])
+            rows.append(["Keuken", "Inbouw vriezer", jaNee(k.inbouwVriezer)])
+            rows.append(["Keuken", "Inbouw vaatwasser", jaNee(k.inbouwVaatwasser)])
+            rows.append(["Keuken", "Kokend-waterkraan", jaNee(k.kokendWaterkraan)])
+            rows.append(["Keuken", "Luxe mengkraan (aantal)", "\(k.luxeMengkranen)"])
+            rows.append(["Keuken", "Thermostatische mengkraan (aantal)", "\(k.thermostatischeMengkranen)"])
+            rows.append(["Keuken", "Aantal foto's", "\(k.fotoBestandsnamen.count)"])
+        }
+
+        rows.append(["Badkamer", "Aanwezig", jaNee(p.badkamer.aanwezig)])
+        if p.badkamer.aanwezig {
+            let b = p.badkamer
+            rows.append(["Badkamer", "Verwarmd", jaNee(b.verwarmd)])
+            rows.append(["Badkamer", "Aantal toiletten", "\(b.aantalToiletten)"])
+            rows.append(["Badkamer", "Waarvan zwevende toiletten", "\(b.waarvanZwevendeToiletten)"])
+            rows.append(["Badkamer", "Waarvan toiletten in badkamer", "\(b.waarvanToilettenInBadkamer)"])
+            rows.append(["Badkamer", "Aantal wastafels", "\(b.aantalWastafels)"])
+            rows.append(["Badkamer", "Meerpersoons wastafels (min. 70cm)", "\(b.aantalMeerpersoonsWastafels)"])
+            rows.append(["Badkamer", "Douche/bad", b.doucheOfBad.rawValue])
+            rows.append(["Badkamer", "Badkamermeubel met wastafel", jaNee(b.badkamermeubelMetWastafel)])
+            rows.append(["Badkamer", "Bubbelbad (whirlpool)", jaNee(b.bubbelbad)])
+            rows.append(["Badkamer", "Volledig gesloten doucheafscheiding", jaNee(b.volledigGeslotenDoucheafscheiding)])
+            rows.append(["Badkamer", "Handdoekradiator", jaNee(b.handdoekradiator)])
+            rows.append(["Badkamer", "Kastruimte (min. 40cm)", jaNee(b.kastruimte)])
+            rows.append(["Badkamer", "Stopcontacten (aantal)", "\(b.stopcontacten)"])
+            rows.append(["Badkamer", "Luxe mengkraan (aantal)", "\(b.luxeMengkranen)"])
+            rows.append(["Badkamer", "Thermostatische mengkraan (aantal)", "\(b.thermostatischeMengkranen)"])
+            rows.append(["Badkamer", "Aantal foto's", "\(b.fotoBestandsnamen.count)"])
+        }
+
+        voegRuimteToe("1e slaapkamer", p.slaapkamer1)
+        voegRuimteToe("2e slaapkamer", p.slaapkamer2)
+        voegRuimteToe("3e slaapkamer", p.slaapkamer3)
+        voegRuimteToe("4e slaapkamer", p.slaapkamer4)
+        voegRuimteToe("Serre", p.serre)
+        voegRuimteToe("Zolderkamer", p.zolderkamer)
+
+        rows.append(["Buitenruimte", "Oppervlakte (m2)", p.oppervlakteBuitenruimteM2.map(getal) ?? ""])
+
+        return csvData(rows)
+    }
+
+    private static func jaNee(_ waarde: Bool) -> String {
+        waarde ? "Ja" : "Nee"
     }
 
     private static func getal(_ waarde: Double) -> String {
