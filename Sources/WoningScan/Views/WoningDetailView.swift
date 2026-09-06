@@ -14,48 +14,60 @@ struct WoningDetailView: View {
 
     var body: some View {
         List {
-            Section {
-                Button {
-                    toonChecklist = true
-                } label: {
-                    Label("Start-checklist (zolder/kelder)", systemImage: "checklist")
-                }
-            }
-
-            Section("Verdiepingen") {
-                ForEach(woning.verdiepingNamen, id: \.self) { verdieping in
-                    NavigationLink(verdieping) {
-                        VerdiepingView(woningId: woningId, verdieping: verdieping)
+            if woning.toontPuntentelling {
+                Section("Puntentelling") {
+                    NavigationLink {
+                        PuntentellingView(woningId: woningId)
+                    } label: {
+                        Label("Ruimtes & buitenruimte", systemImage: "square.grid.2x2")
                     }
                 }
-                Button {
-                    toonNieuweVerdieping = true
-                } label: {
-                    Label("Verdieping toevoegen", systemImage: "plus")
-                }
             }
 
-            Section("Overige gegevens") {
-                NavigationLink {
-                    GebouwhoogteFormView(woningId: woningId)
-                } label: {
-                    HStack {
-                        Text("Gebouwhoogte")
-                        Spacer()
-                        if let hoogte = woning.gebouwhoogteMm {
-                            Text("\(Int(hoogte)) mm").foregroundStyle(.secondary)
+            if woning.toontEnergielabel {
+                Section {
+                    Button {
+                        toonChecklist = true
+                    } label: {
+                        Label("Start-checklist (zolder/kelder)", systemImage: "checklist")
+                    }
+                }
+
+                Section("Verdiepingen") {
+                    ForEach(woning.verdiepingNamen, id: \.self) { verdieping in
+                        NavigationLink(verdieping) {
+                            VerdiepingView(woningId: woningId, verdieping: verdieping)
                         }
                     }
+                    Button {
+                        toonNieuweVerdieping = true
+                    } label: {
+                        Label("Verdieping toevoegen", systemImage: "plus")
+                    }
                 }
-                NavigationLink {
-                    GebruiksoppervlakView(woningId: woningId)
-                } label: {
-                    Text("Gebruiksoppervlak per verdieping (\(woning.gebruiksoppervlaktes.count))")
-                }
-                NavigationLink {
-                    AftappuntenView(woningId: woningId)
-                } label: {
-                    Text("Boiler / aftappunten (\(woning.aftappunten.count))")
+
+                Section("Overige gegevens") {
+                    NavigationLink {
+                        GebouwhoogteFormView(woningId: woningId)
+                    } label: {
+                        HStack {
+                            Text("Gebouwhoogte")
+                            Spacer()
+                            if let hoogte = woning.gebouwhoogteMm {
+                                Text("\(Int(hoogte)) mm").foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    NavigationLink {
+                        GebruiksoppervlakView(woningId: woningId)
+                    } label: {
+                        Text("Gebruiksoppervlak per verdieping (\(woning.gebruiksoppervlaktes.count))")
+                    }
+                    NavigationLink {
+                        AftappuntenView(woningId: woningId)
+                    } label: {
+                        Text("Boiler / aftappunten (\(woning.aftappunten.count))")
+                    }
                 }
             }
 
