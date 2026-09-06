@@ -11,6 +11,11 @@ struct Woning: Identifiable, Codable, Hashable {
     var gebruiker: String = ""     // gekoppeld aan de ingelogde gebruiker
     var verdiepingNamen: [String] = ["Begane grond"]
 
+    /// Welke opname(s) dit project bevat - gekozen via vinkjes bij het aanmaken. Een leeg overzicht
+    /// (oudere projecten van vóór deze functie) wordt behandeld als "Energielabel", zodat bestaande
+    /// projecten precies blijven werken zoals voorheen.
+    var projectTypes: Set<ProjectType> = []
+
     var introChecklist: IntroChecklist = IntroChecklist()
     var gevels: [Gevel] = []
     var daken: [Dak] = []
@@ -19,6 +24,7 @@ struct Woning: Identifiable, Codable, Hashable {
     var gebruiksoppervlaktes: [GebruiksoppervlakEntry] = []
     var aftappunten: [Aftappunt] = []
     var kamerScans: [KamerScan] = []
+    var puntentelling: Puntentelling = Puntentelling()
 
     var laatstGewijzigd: Date = Date()
 
@@ -26,14 +32,22 @@ struct Woning: Identifiable, Codable, Hashable {
     var aantalElementen: Int {
         gevels.count + daken.count + vloeren.count + gevels.reduce(0) { $0 + $1.openingen.count }
     }
+
+    /// Of de Energielabel-opname (verdiepingen/gevels/daken/vloeren) getoond moet worden. Een leeg
+    /// `projectTypes` (oudere projecten) telt hier ook mee, zodat niets verdwijnt voor bestaande opnames.
+    var toontEnergielabel: Bool {
+        projectTypes.contains(.energielabel) || projectTypes.isEmpty
+    }
+
+    /// Of het Puntentelling-onderdeel getoond moet worden - alleen als expliciet aangevinkt bij het aanmaken.
+    var toontPuntentelling: Bool {
+        projectTypes.contains(.puntentelling)
+    }
 }
 
 /// Eén 3D-scan (LiDAR-meshscan met ARKit) van een verdieping: een doorlopende opname terwijl je door
-/// de ruimte loopt. Een LiDAR-scan levert twee dingen op die je allebei apart kan bekijken: een
-/// puntenwolk (de losse datapunten die ARKit in de ruimte meet, vóórdat ze tot een oppervlak worden
-/// verbonden) en een 3D-model (dezelfde punten, maar dan verbonden tot een gekleurde mesh die het
-/// uiterlijk van de wanden/vloer/plafond nabootst) - plus de tijdens het scannen gemaakte foto-notities
-/// (zie ScanNotitie) die je later kan toelichten.
+/// de ruimte loopt, met eventueel een geëxporteerd .usdz 3D-model en de tijdens het scannen gemaakte
+/// foto-notities (zie ScanNotitie) die je later kan toelichten - net als bij het scannen zelf.
 struct KamerScan: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
     var verdieping: String
@@ -84,4 +98,70 @@ struct Begrenzingslijn: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
     var naam: String = ""
     var punten: [Punt3D] = []
+}
+
+/// Alle gegevens voor de puntentelling (Woningwaarderingsstelsel): per ruimte of deze aanwezig en
+/// verwarmd is, plus de losse kwaliteitspunten voor keuken en badkamer, en de oppervlakte buitenruimte.
+struct Puntentelling: Codable, Hashable {
+    var woonkamer: PuntentellingRuimte = PuntentellingRuimte()
+    var woonkamerMetOpenKeuken: PuntentellingRuimte = PuntentellingRuimte()
+    var keuken: PuntentellingKeuken = PuntentellingKeuken()
+    var badkamer: PuntentellingBadkamer = PuntentellingBadkamer()
+    var slaapkamer1: PuntentellingRuimte = PuntentellingRuimte()
+    var slaapkamer2: PuntentellingRuimte = PuntentellingRuimte()
+    var slaapkamer3: PuntentellingRuimte = PuntentellingRuimte()
+    var slaapkamer4: PuntentellingRuimte = PuntentellingRuimte()
+    var serre: PuntentellingRuimte = PuntentellingRuimte()
+    var zolderkamer: PuntentellingRuimte = PuntentellingRuimte()
+    var oppervlakteBuitenruimteM2: Double?
+}
+
+/// Een simpele ruimte in de puntentelling (woonkamer, slaapkamer, serre, zolderkamer): alleen aanwezig
+/// en verwarmd of niet, plus eventueel één of meer foto's van de ruimte.
+struct PuntentellingRuimte: Codable, Hashable {
+    var aanwezig: Bool = false
+    var verwarmd: Bool = false
+    var fotoBestandsnamen: [String] = []
+}
+
+/// Puntentelling-gegevens van de keuken: naast aanwezig/verwarmd ook de kwaliteitspunten voor
+/// aanrecht, inbouwapparatuur en kranen.
+struct PuntentellingKeuken: Codable, Hashable {
+    var aanwezig: Bool = false
+    var verwarmd: Bool = false
+    var lengteAanrechtbladCm: Double?
+    var inbouwKookplaat: Bool = false
+    var inbouwOven: Bool = false
+    var afzuigkap: Bool = false
+    var inbouwMagnetron: Bool = false
+    var inbouwKoelkast: Bool = false
+    var inbouwVriezer: Bool = false
+    var inbouwVaatwasser: Bool = false
+    var luxeMengkranen: Int = 0
+    var thermostatischeMengkranen: Int = 0
+    var totaleBreedteKeukenkastenCm: Double?
+    var kokendWaterkraan: Bool = false
+    var fotoBestandsnamen: [String] = []
+}
+
+/// Puntentelling-gegevens van de badkamer: naast aanwezig/verwarmd ook de kwaliteitspunten voor
+/// sanitair, kranen en overige voorzieningen.
+struct PuntentellingBadkamer: Codable, Hashable {
+    var aanwezig: Bool = false
+    var verwarmd: Bool = false
+    var aantalToiletten: Int = 0
+    var waarvanZwevendeToiletten: Int = 0
+    var waarvanToilettenInBadkamer: Int = 0
+    var aantalWastafels: Int = 0
+    var aantalMeerpersoonsWastafels: Int = 0   // min. 70 cm breed
+    var doucheOfBad: DoucheOfBad = .douche
+    var badkamermeubelMetWastafel: Bool = false
+    var bubbelbad: Bool = false
+    var volledigGeslotenDoucheafscheiding: Bool = false
+    var luxeMengkranen: Int = 0
+    var thermostatischeMengkranen: Int = 0
+    var handdoekradiator: Bool = false
+    var stopcontacten: Int = 0
+    var kastruimte: Bool = false   // min. 40 cm breed en hoog
+    var fotoBestandsnamen: [String] = []
 }
