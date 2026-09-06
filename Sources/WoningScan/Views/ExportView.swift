@@ -24,7 +24,7 @@ struct ExportView: View {
                 Text("Exporteer '\(woning.naam)'")
                     .font(.headline)
 
-                Text("Maakt één .zip-bestand met alle gescande gegevens (JSON + CSV per categorie) en foto's. Deel 'm via AirDrop, Mail, of bewaar 'm in Bestanden.")
+                Text("Maakt één .zip-bestand met alle gescande gegevens (JSON + CSV per categorie, inclusief Puntentelling.csv) en foto's. Deel 'm via AirDrop, Mail, of bewaar 'm in Bestanden - de CSV is bedoeld om in Excel te openen of op een website te importeren.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -37,11 +37,28 @@ struct ExportView: View {
                 Button {
                     genereerExport()
                 } label: {
-                    Label("Genereer export", systemImage: "doc.zipper")
+                    Label("Genereer export (.zip + CSV)", systemImage: "doc.zipper")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(.horizontal)
+
+                if woning.toontPuntentelling {
+                    Button {
+                        genereerPuntentellingPDF()
+                    } label: {
+                        Label("Genereer PDF (puntentelling)", systemImage: "doc.richtext")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(.horizontal)
+
+                    Text("Overzichtelijk rapport van alle ruimtes, kwaliteitspunten en foto's.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
 
                 Spacer()
             }
@@ -68,6 +85,17 @@ struct ExportView: View {
             foutmelding = nil
         } catch {
             foutmelding = "Export mislukt: \(error.localizedDescription)"
+        }
+    }
+
+    private func genereerPuntentellingPDF() {
+        do {
+            let url = try PuntentellingPDFExporter.exporteer(woning)
+            exportUrl = url
+            toonDeelvenster = true
+            foutmelding = nil
+        } catch {
+            foutmelding = "PDF mislukt: \(error.localizedDescription)"
         }
     }
 }
