@@ -65,6 +65,7 @@ enum PuntentellingPDFExporter {
 
 /// Houdt de teken-cursor (huidige y-positie) bij tijdens het opbouwen van het PDF en breekt
 /// automatisch naar een nieuwe pagina zodra de inhoud niet meer past.
+@MainActor
 private struct PDFCursor {
     let context: UIGraphicsPDFRendererContext
     let bounds: CGRect
@@ -208,4 +209,3 @@ private struct PDFCursor {
     private func jaNee(_ waarde: Bool) -> String { waarde ? "Ja" : "Nee" }
     private func getal(_ waarde: Double) -> String { String(format: "%.1f", waarde) }
 }
- 
