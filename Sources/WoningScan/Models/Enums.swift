@@ -158,3 +158,22 @@ enum GrenstAanKeuze: String, CaseIterable, Codable, Identifiable {
 
     var id: String { rawValue }
 }
+
+/// Het soort opname dat een project bevat - bij het aanmaken kies je via vinkjes één of beide.
+/// Bepaalt welke onderdelen zichtbaar zijn in WoningDetailView (Puntentelling en/of de bestaande
+/// Energielabel-opname met verdiepingen/gevels/daken/vloeren).
+enum ProjectType: String, CaseIterable, Codable, Hashable, Identifiable {
+    case puntentelling = "Puntentelling"
+    case energielabel = "Energielabel"
+
+    var id: String { rawValue }
+}
+
+/// Douche/bad-situatie in de badkamer, voor de puntentelling.
+enum DoucheOfBad: String, CaseIterable, Codable, Hashable, Identifiable {
+    case douche = "Douche"
+    case bad = "Bad"
+    case doucheEnBad = "Douche en bad in 1 ruimte"
+
+    var id: String { rawValue }
+}
